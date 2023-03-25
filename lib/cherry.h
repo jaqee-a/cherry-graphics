@@ -25,7 +25,25 @@ typedef int Errno;
 
 // Utils
 float lerpf(float a, float b, float t) { return a+(b-a)*t; }
+float clamp(float edge_1, float edge_2, float x) { return x<edge_1?edge_1:(x>edge_2?edge_2:x); }
+float step(float edge, float x) { return x>=edge?1:0; }
+float smoothstep(float edge_1, float edge_2, float x) { return (clamp(edge_1, edge_2, x)-edge_1)/(edge_2-edge_1); }
+uint32_t lerpc(uint32_t a, uint32_t b, float t)
+{
+    uint8_t red_c   = ( a&0xFF);
+    uint8_t green_c = ((a>>8)&0xFF);
+    uint8_t blue_c  = ((a>>16)&0xFF);
 
+    uint8_t red_t   = ( b&0xFF);
+    uint8_t green_t = ((b>>8)&0xFF);
+    uint8_t blue_t  = ((b>>16)&0xFF);
+
+    uint8_t red   = (uint8_t)lerpf((float)red_c,  (float) red_t,   t);
+    uint8_t green = (uint8_t)lerpf((float)green_c,(float) green_t, t);
+    uint8_t blue  = (uint8_t)lerpf((float)blue_c, (float) blue_t,  t);
+
+    return red+(green<<8)+(blue<<16)+0xFF000000;
+}
 // Ref: https://mathopenref.com/coordparamellipse.html
 void cherry_stroke_ellipse(uint32_t *pixels, size_t width, size_t height,
                            int32_t cx, int32_t cy, size_t rx, size_t ry, uint32_t color)
