@@ -92,6 +92,60 @@ void cherry_fill(uint32_t *pixels, size_t width, size_t height, uint32_t color)
     }
 }
 
+void cherry_fill_ellipse(uint32_t *pixels, size_t width, size_t height,
+                           int32_t cx, int32_t cy, size_t rx, size_t ry, uint32_t color)
+{
+    float F=sqrt(abs(ry*ry-rx*rx));
+
+    int32_t FX1=cx;
+    int32_t FX2=cx;
+
+    int32_t FY1=cy;
+    int32_t FY2=cy;
+
+    if(rx>ry)
+    {
+        FX1+=F;
+        FX2-=F;
+    }else{
+        FY1+=F;
+        FY2-=F;
+    }
+
+    int32_t ex=cx+rx;
+    int32_t ey=cy;
+
+    int32_t dex1=ex-FX1;
+    int32_t dex2=ex-FX2;
+
+    int32_t dey1=ey-FY1;
+    int32_t dey2=ey-FY2;
+
+    float n_dist=sqrt(dex1*dex1+dey1*dey1)+sqrt(dex2*dex2+dey2*dey2);
+
+    for(int32_t y=cy-ry; y<cy+(int32_t)rx; y+=1)
+    {
+        if(0>y||(int32_t)height<=y) continue;
+
+        for(int32_t x=cx-rx; x<cx+(int32_t)rx; x+=1)
+        {
+            if(0>x||(int32_t)width<=x) continue;
+
+            int32_t px1=x-FX1;
+            int32_t px2=x-FX2;
+
+            int32_t py1=y-FY1;
+            int32_t py2=y-FY2;
+
+            if(sqrt(px1*px1+py1*py1)+sqrt(px2*px2+py2*py2)<n_dist)
+            {
+                pixels[y*(int32_t)width+x]=color;
+            }
+        }
+    }
+
+}
+
 void cherry_fill_rect(uint32_t *pixels, size_t width, size_t height,
                       int32_t x, int32_t y, size_t rw, size_t rh, uint32_t color)
 {
