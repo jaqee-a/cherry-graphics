@@ -1,0 +1,372 @@
+#ifndef CHERRY_C_
+#define CHERRY_C_
+
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <malloc.h>
+#include <inttypes.h>
+#include <math.h>
+
+#define PI 3.14159265358979323846
+
+#define RAD2DEG (180.0/PI)
+#define DEG2RAD (PI/180.0)
+
+#define COLOR_MODE_RGB  1
+#define COLOR_MODE_BGR  2
+#define COLOR_MODE_RGBA 3
+#define COLOR_MODE_BGRA 4
+
+
+typedef int Errno;
+
+// Utils
+float lerpf(float a, float b, float t) { return a+(b-a)*t; }
+
+// Ref: https://mathopenref.com/coordparamellipse.html
+void cherry_stroke_ellipse(uint32_t *pixels, size_t width, size_t height,
+                           int32_t cx, int32_t cy, size_t rx, size_t ry, uint32_t color)
+{
+    // x = cx + a * cos(t)
+    // y = cy + b * sin(t)
+
+    for(size_t t=0; t<360; t+=1)
+    {
+        int32_t x=cx+rx*cos(t);
+        if(0>x||(int32_t)width<=x) continue;
+
+        int32_t y=cy+ry*sin(t);
+        if(0>y||(int32_t)height<=y) continue;
+
+        pixels[y*(int32_t)width+x]=color;
+    }
+
+}
+
+void cherry_stroke_circle(uint32_t *pixels, size_t width, size_t height,
+                          int32_t cx, int32_t cy, size_t r, uint32_t color)
+{
+    for(size_t t=0; t<360; t+=1)
+    {
+        int x=cx+r*cos(t);
+        if(0>x||(int32_t)width<=x) continue;
+
+        int y=cy+r*sin(t);
+        if(0>y||(int32_t)height<=y) continue;
+
+        pixels[y*(int32_t)width+x] = color;
+    }
+}
+
+// Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+// TODO: Fix point starting from outside the canvas
+void cherry_stroke_line(uint32_t *pixels, size_t width, size_t height,
+                        int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color)
+{
+    int32_t dx=x1-x0;
+    int32_t dy=y1-y0;
+    
+    int32_t D=2*dy-dx;
+    int32_t y=y0;
+
+    for(int32_t x=x0; x<x1; x+=1)
+    {
+        if(0>y||(int32_t)height<=y||0>x||(int32_t)width<=x) continue;
+
+        pixels[y*(int32_t)width+x]=color;
+        if (D > 0)
+        {
+            y=y+1;
+            D=D-2*dx;
+        }
+        D=D+2*dy;
+    }
+}
+
+void cherry_fill(uint32_t *pixels, size_t width, size_t height, uint32_t color)
+{
+    for(size_t i=0; i<width*height; i+=1)
+    {
+        pixels[i]=color;
+    }
+}
+
+void cherry_fill_rect(uint32_t *pixels, size_t width, size_t height,
+                      int32_t x, int32_t y, size_t rw, size_t rh, uint32_t color)
+{
+    for(int32_t py=y; py<y+(int32_t)rh; py+=1)
+    {
+        if(0>py||(int32_t)height<=py) continue;
+
+        for(int32_t dx=x; dx<x+(int32_t)rw; dx+=1)
+        {
+            if(0>dx||(int32_t)width<=dx) continue; 
+
+            pixels[py*(int32_t)width+dx]=color;
+        }
+    }
+}
+
+void cherry_fill_circle(uint32_t *pixels, size_t width, size_t height,
+                        int32_t cx, int32_t cy, size_t r, uint32_t color)
+{
+    for(int32_t y=cy-r; y<cy+(int32_t)r; y+=1)
+    {
+        if(0>y||(int32_t)height<=y) continue;
+
+        for(int32_t x=cx-r; x<cx+(int32_t)r; x+=1)
+        {
+            if(0>x||(int32_t)width<=x) continue;
+
+            int32_t px=x-cx;
+            int32_t py=y-cy;
+
+            if(py*py+px*px<(int32_t)(r*r))
+            {
+                pixels[y*(int32_t)width+x] = color;
+            }
+        }
+    }
+}
+
+#define return_defer(v) do { code=(v); goto defer; } while(0)
+Errno cherry_save_to_ppm(uint32_t *pixels, size_t width, size_t height, const char *file_name)
+{
+    Errno code = 0;
+    FILE *f = NULL;
+    f = fopen(file_name, "wb");
+    if(f == NULL) return_defer(errno);
+
+    {
+        fprintf(f, "P6\n%zu %zu\n255\n", width, height);
+        if(ferror(f)) return_defer(errno);
+
+        for(size_t i=0; i < width*height; i+=1)
+        {
+            // 0xAABBGGRR
+            uint32_t color = pixels[i];
+            uint8_t bytes[3] = {
+                (color>>(8*0))&0xFF,
+                (color>>(8*1))&0xFF,
+                (color>>(8*2))&0xFF
+            };
+            fwrite(bytes, sizeof(bytes), 1, f);
+            if(ferror(f)) return_defer(errno);
+        }
+    }
+
+defer:
+    if(f) fclose(f);
+    return code;
+}
+
+// Write bmp file headers
+Errno generate_bmp_header(uint32_t raw_data, uint8_t color_mode, FILE *f)
+{
+    uint32_t offset=54;
+    if(COLOR_MODE_BGRA==color_mode||COLOR_MODE_RGBA==color_mode)
+    {
+        offset=122;
+    }
+
+    uint32_t file_size = offset + raw_data;
+    uint8_t bytes[14] = {
+        'B', 'M',
+        (uint8_t) file_size,
+        (uint8_t) (file_size>>8),
+        (uint8_t) (file_size>>16),
+        (uint8_t) (file_size>>24),
+        0x00, 0x00, 0x00, 0x00,
+        (uint8_t) offset,
+        (uint8_t) (offset>>8),
+        (uint8_t) (offset>>16),
+        (uint8_t) (offset>>24)
+    };
+
+    fwrite(bytes, sizeof(bytes), 1, f);
+    if(ferror(f)) return errno;
+
+    return 0;
+}
+
+// Write dib header information into the bmp file
+Errno generate_dib_header(uint8_t color_mode, size_t width, size_t height, uint32_t raw_data, FILE *f)
+{
+    const uint32_t DPI=2835;
+
+    uint32_t header_size;
+    uint32_t compression_method;
+
+    uint16_t bits;
+
+    uint32_t alpha_bytes[17]={0};
+    if(COLOR_MODE_RGB==color_mode||COLOR_MODE_BGR==color_mode)
+    {
+        header_size=40;
+        bits=24;
+        compression_method=0;
+    }else
+    {
+        header_size=108;
+        bits=32;
+        compression_method=3;
+
+        alpha_bytes[0]=0x00FF0000;
+        alpha_bytes[1]=0x0000FF00;
+        alpha_bytes[2]=0x000000FF;
+        alpha_bytes[3]=0xFF000000;
+        // Color Space
+        alpha_bytes[4]=0x206E6957;
+    }
+
+    uint8_t shared_bytes[] = {
+        (uint8_t) header_size, 0, 0, 0,
+        (uint8_t) width,
+        (uint8_t) (width>>8),
+        (uint8_t) (width>>16),
+        (uint8_t) (width>>24),
+        (uint8_t) height,
+        (uint8_t) (height>>8),
+        (uint8_t) (height>>16),
+        (uint8_t) (height>>24),
+        0x01, 0x00,
+        (uint8_t) bits,
+        (uint8_t) (bits>>8),
+        (uint8_t) compression_method,
+        (uint8_t) (compression_method>>8), 
+        (uint8_t) (compression_method>>16),
+        (uint8_t) (compression_method>>24),
+        (uint8_t) raw_data,
+        (uint8_t) (raw_data>>8),
+        (uint8_t) (raw_data>>16),
+        (uint8_t) (raw_data>>24),
+        (uint8_t) DPI,
+        (uint8_t) (DPI>>8),
+        (uint8_t) (DPI>>16),
+        (uint8_t) (DPI>>24),
+        (uint8_t) DPI,
+        (uint8_t) (DPI>>8),
+        (uint8_t) (DPI>>16),
+        (uint8_t) (DPI>>24),
+        0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00
+    };
+
+    fwrite(shared_bytes, sizeof(shared_bytes), 1, f);
+    if(ferror(f)) return errno;
+
+    if(COLOR_MODE_RGBA==color_mode||COLOR_MODE_BGRA==color_mode)
+    {
+        fwrite(alpha_bytes, sizeof(alpha_bytes), 1, f);
+        if(ferror(f)) return errno;
+    }
+
+    return 0;
+}
+
+// Write image data into the bmp file
+Errno create_bitmap_data(uint32_t *pixels, size_t width, size_t height, uint8_t color_mode, FILE *f)
+{
+    int32_t bytes_size=width*height;
+    uint8_t color_size=3;
+
+    uint8_t R=0, G=1, B=2;
+
+    // Flip R and B index
+    if(COLOR_MODE_BGRA==color_mode||COLOR_MODE_BGR==color_mode)
+    {
+        R=2;B=0;
+    }
+
+    if(COLOR_MODE_RGB==color_mode||COLOR_MODE_BGR==color_mode)
+    {
+        // Add a padding of size (width%4)*height at the end of each row
+        bytes_size=bytes_size*color_size+(width%4)*height;
+    }else
+    {
+        color_size=4;
+        bytes_size*=color_size;
+    }
+
+    size_t i, offset=0;
+
+    uint8_t *bytes=(uint8_t*)malloc(bytes_size);
+
+    int32_t byte_index=0;
+
+    for(int32_t y=height-1; y>=0; y-=1)
+    for(int32_t x=0; x<(int32_t)width; x+=1)
+    {
+        i=y*width+x;
+
+        uint32_t color = pixels[i];
+
+        bytes[byte_index*color_size+0+offset]=(color>>(8*B))&0xFF;
+        bytes[byte_index*color_size+1+offset]=(color>>(8*G))&0xFF;
+        bytes[byte_index*color_size+2+offset]=(color>>(8*R))&0xFF;
+
+        if(COLOR_MODE_BGRA==color_mode||COLOR_MODE_RGBA==color_mode)
+        {
+            bytes[byte_index*color_size+3]=(color>>(8*3))&0xFF;
+        }else if((i+1)%width==0)
+        {
+            offset+=width%4;
+        }
+
+        byte_index++;
+    } 
+
+    fwrite(bytes, bytes_size, 1, f);
+    free(bytes);
+
+    if(ferror(f)) return errno;
+
+    return 0;
+}
+
+
+// out R
+#define calculate_raw_data(w, h, b, R) do { R=b*w*h+(w%4)*h; } while(0);
+
+// Ref: https://en.wikipedia.org/wiki/BMP_file_format
+Errno cherry_save_to_bmp(uint32_t *pixels, uint8_t color_mode, size_t width, size_t height, const char *file_name)
+{
+    Errno code=0;
+    FILE *f=NULL;
+    f=fopen(file_name, "wb");
+    if(f==NULL) return_defer(errno);
+
+    uint32_t raw_data=0;
+
+    {
+        switch (color_mode)
+        {
+        case COLOR_MODE_RGB:
+        case COLOR_MODE_BGR:
+            calculate_raw_data(width, height, 3, raw_data);
+            break;
+        case COLOR_MODE_BGRA:
+        case COLOR_MODE_RGBA:
+            calculate_raw_data(width, height, 4, raw_data);
+            break;
+        default:
+            fprintf(stderr, "Could not save bmp file: Unknown color mode");
+        }
+
+        Errno gbh_err = generate_bmp_header(raw_data, color_mode, f);
+        if(gbh_err) return_defer(gbh_err);
+
+        Errno gdh_err = generate_dib_header(color_mode, width, height, raw_data, f);
+        if(gdh_err) return_defer(gdh_err);
+
+        Errno cbd_err = create_bitmap_data(pixels, width, height, color_mode, f);
+        if(cbd_err) return_defer(cbd_err);
+    }
+
+defer:
+    if(f) fclose(f);
+    return code;
+}
+
+#endif /* CHERRY_C_ */
