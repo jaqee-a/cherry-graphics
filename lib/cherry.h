@@ -7,6 +7,7 @@
 #include <malloc.h>
 #include <inttypes.h>
 #include <math.h>
+#include <time.h>
 
 #define PI 3.14159265358979323846
 

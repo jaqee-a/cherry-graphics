@@ -1,12 +1,6 @@
 #ifndef CHERRY_NOISE_C_
 #define CHERRY_NOISE_C_
 
-#include <inttypes.h>
-#include <stdlib.h>
-#include <time.h>
-#include <malloc.h>
-#include <stdio.h>
-
 const int32_t PERLIN_YWRAPB = 4;
 const int32_t PERLIN_YWRAP = 16;
 const int32_t PERLIN_ZWRAPB = 8;
