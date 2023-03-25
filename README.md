@@ -38,7 +38,6 @@ $ ./example
 - ✅ Perlin Noise
 
 ## Gallery
-![Epic Mistake](./examples/epic_mistake.bmp)
 ![Perlin Noise](./examples/perlin_example.bmp)
 ![Procedural Island Generation](./examples/procedural_island_example.bmp)
 ![All Examples](./examples/output_example.bmp)
