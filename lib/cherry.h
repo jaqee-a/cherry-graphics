@@ -13,6 +13,8 @@
 #define RAD2DEG (180.0/PI)
 #define DEG2RAD (PI/180.0)
 
+#include "noise.h"
+
 #define COLOR_MODE_RGB  1
 #define COLOR_MODE_BGR  2
 #define COLOR_MODE_RGBA 3
