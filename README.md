@@ -22,6 +22,7 @@ $ ./example
 - ✅ Fill Rectangle
 - ✅ Fill Circle
 - ✅ Fill Ellipse
+- ✅ Fill Triangle
 - ✅ Stroke Line
 - ✅ Stroke Circle
 - ✅ Stroke Ellipse

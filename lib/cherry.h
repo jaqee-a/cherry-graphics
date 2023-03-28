@@ -183,6 +183,117 @@ void cherry_fill_rect(uint32_t *pixels, size_t width, size_t height,
     }
 }
 
+void swap_int(int32_t *i1, int32_t *i2)
+{
+    int32_t tmp = (*i1);
+    *i1=*i2;
+    *i2=tmp;
+}
+
+void get_line_segments(int32_t x0, int32_t y0,
+                       int32_t x1, int32_t y1,
+                       float *m  , int32_t *b)
+{
+    int32_t dx=x0-x1;
+    int32_t dy=y0-y1;
+
+    if(dx == 0){
+        *m=0;
+        *b=x0;
+        return;
+    }
+        
+    *m = (float)dy/dx;
+    *b = y0-*m*x0;
+}
+
+void sort_points_by_y(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1, int32_t *x2, int32_t *y2)
+{
+    if(*y1 > *y0)
+    {
+        swap_int(y1, y0);
+        swap_int(x1, x0);
+    }
+
+    if(*y2 > *y1)
+    {
+        swap_int(y1, y2);
+        swap_int(x1, x2);
+    }
+
+    if(*y2 > *y0)
+    {
+        swap_int(y0, y2);
+        swap_int(x0, x2);
+    }
+}
+
+void cherry_fill_triangle(uint32_t *pixels, size_t width, size_t height,
+                          int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color)
+{
+    /*
+        Line function
+        y=mx+b
+        x=(y-b)/m
+        TOP TO MIDDLE LINE
+        ytm=m(xtm)+b
+        
+        y0=m(x0)+b
+        y1=m(x1)+b
+
+        y0-y1
+        ----- = m
+        x0-x1
+
+        b=y0-m(x0)
+    */
+
+   sort_points_by_y(&x0, &y0, &x1, &y1, &x2, &y2); 
+
+    float m_top_bottom, m_top_middle, m_middle_bottom;
+    int32_t b_top_middle, b_top_bottom, b_middle_bottom;
+
+    get_line_segments(x0, y0, x1, y1, &m_top_middle, &b_top_middle);
+    get_line_segments(x0, y0, x2, y2, &m_top_bottom, &b_top_bottom);
+    get_line_segments(x1, y1, x2, y2, &m_middle_bottom, &b_middle_bottom);
+ 
+    for(int32_t y=y2; y<y1; y+=1)
+    {
+        if(0>y||(int32_t)height<=y) continue;
+
+        int32_t x_middle_bottom=m_middle_bottom?(y-b_middle_bottom)/m_middle_bottom:b_middle_bottom;
+        int32_t x_top_bottom   =m_top_bottom?(y-b_top_bottom)/m_top_bottom:b_middle_bottom;
+
+        if(x_middle_bottom>x_top_bottom)
+            swap_int(&x_top_bottom, &x_middle_bottom);
+
+        for(int32_t x=x_middle_bottom; x<x_top_bottom; x+=1)
+        {
+            if(0>x||(int32_t)width<=x) continue;
+
+            pixels[y*width+x]=color;
+        }
+    }
+
+    for(int32_t y=y1; y<y0; y+=1)
+    {
+        if(0>y||(int32_t)height<=y) continue;
+
+        int32_t x_top_middle=m_top_middle?(y-b_top_middle)/m_top_middle:b_top_middle;
+        int32_t x_top_bottom=m_top_bottom?(y-b_top_bottom)/m_top_bottom:b_top_bottom;
+
+        if(x_top_middle>x_top_bottom)
+            swap_int(&x_top_bottom, &x_top_middle);
+
+        for(int32_t x=x_top_middle; x<x_top_bottom; x+=1)
+        {
+            if(0>x||(int32_t)width<=x) continue;
+
+            pixels[y*width+x]=color;
+        }
+    }
+}
+
 void cherry_fill_circle(uint32_t *pixels, size_t width, size_t height,
                         int32_t cx, int32_t cy, size_t r, uint32_t color)
 {

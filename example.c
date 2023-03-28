@@ -120,11 +120,24 @@ void procedural_island()
     }
 }
 
+void example_triangle()
+{
+    cherry_fill(pixels, WIDTH, HEIGHT, 0xFFFFFFFF);
+    cherry_fill_triangle(pixels, WIDTH, HEIGHT, 100, 100, 300, 200, 300, 150, 0xFF00FF00);
+
+    const char* file_path = "examples/triangle_example.bmp";
+    Errno err = cherry_save_to_bmp(pixels, COLOR_MODE_BGRA, WIDTH, HEIGHT, file_path);
+    if(err) {
+        fprintf(stderr, "Could write to file %s: %s", file_path, strerror(err));
+    }
+}
+
 int main(void)
 {
     // example_test_all();
     // example_perlin();
-    procedural_island();
-    
+    // procedural_island();
+    example_triangle();
+
     return 0;
 }
