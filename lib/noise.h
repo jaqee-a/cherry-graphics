@@ -1,6 +1,14 @@
 #ifndef CHERRY_NOISE_C_
 #define CHERRY_NOISE_C_
 
+#ifndef CHERRY_C_
+#include <math.h>
+#include <stdlib.h>
+#include <time.h>
+#define PI 3.14159265358979323846
+
+#endif // !CHERRY_C_
+
 const int32_t PERLIN_YWRAPB = 4;
 const int32_t PERLIN_YWRAP = 16;
 const int32_t PERLIN_ZWRAPB = 8;
@@ -9,7 +17,7 @@ const int32_t PERLIN_SIZE = 4095;
 
 
 int32_t perlin_octaves = 4; // default to medium smooth
-int32_t perlin_amp_falloff = 0.5; // 50% reduction/octave
+float perlin_amp_falloff = 0.5; // 50% reduction/octave
 
 float *perlin = NULL;
 
