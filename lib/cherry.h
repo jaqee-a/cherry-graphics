@@ -2,6 +2,7 @@
 #define CHERRY_C_
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <malloc.h>
@@ -116,7 +117,7 @@ void cherry_fill(uint32_t *pixels, size_t width, size_t height, uint32_t color)
 void cherry_fill_ellipse(uint32_t *pixels, size_t width, size_t height,
                            int32_t cx, int32_t cy, size_t rx, size_t ry, uint32_t color)
 {
-    float F=sqrt(abs(ry*ry-rx*rx));
+    float F=sqrt(abs((int)(ry*ry-rx*rx)));
 
     int32_t FX1=cx;
     int32_t FX2=cx;

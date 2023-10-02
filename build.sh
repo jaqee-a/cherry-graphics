@@ -1,3 +1,3 @@
 set -xe
 
-gcc -Wall -Wextra -std=c99 -o example example.c
+gcc -Wall -Wextra -std=c99 -lm -o example example.c
